@@ -3,6 +3,7 @@ import numpy as np
 import numba
 import matplotlib.pyplot as plt
 from scipy import signal as spsig
+import cv2
 
 class TrailGrid:
 
@@ -40,7 +41,8 @@ class TrailGrid:
         if (self.kernel is None):
             raise Exception('Did not set kernel')
 
-        self.grid += spsig.fftconvolve(trail_grid, self.kernel, mode='same')
+        #self.grid += spsig.fftconvolve(trail_grid, self.kernel, mode='same')
+        self.grid += spsig.convolve(spsig.convolve(trail_grid, self.kernel, mode='same'), self.kernel.T, mode='same')
 
     def get_values_from_positions(self, positions: np.ndarray):
         indicesx = (positions[:, 0] - self.xmin) * self.dNxdx + 1
@@ -54,16 +56,11 @@ class TrailGrid:
 
         return self.grid[indicesx, indicesy]
 
-    def set_kernel_gaussian(self, sigma: float):
-        xrange = np.linspace(self.xmin, self.xmax, self.Nx)
-        yrange = np.linspace(self.ymin, self.ymax, self.Ny)
-
-        kernel = np.exp(-((xrange[:, None]**2 + yrange[None, :]**2) / (2 * sigma**2)))
-        kernel /= np.sum(kernel)
-        self.kernel = kernel
+    def set_kernel_gaussian(self, N: int, s: float):
+        self.kernel = cv2.getGaussianKernel(N, s)
 
     def set_kernel_square(self, size: int, value: int=1):
-        self.kernel = value*np.ones((size, size))
+        self.kernel = value*np.ones(size)
 
     def set_kernel_custom(self, kernel: np.ndarray):
         self.kernel = kernel
@@ -84,6 +81,11 @@ class TrailGrid:
     def show_bias(self):
         if self.bias is not None:
             plt.imshow(self.bias)
+            plt.show()
+
+    def show_kernel(self):
+        if self.kernel is not None:
+            plt.plot(self.kernel)
             plt.show()
 
 @numba.njit()
